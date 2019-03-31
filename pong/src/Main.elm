@@ -35,6 +35,18 @@ ballRadius =
     5
 
 
+ballSpeed =
+    4
+
+
+ballReflectAngle =
+    60
+
+
+initialBallPosition =
+    ( gameWidth / 2, gameHeight / 2 )
+
+
 initialPosition =
     gameHeight / 2 - paddleHeight / 2
 
@@ -45,6 +57,10 @@ paddleLeft =
 
 paddleRight =
     gameWidth - 2 * paddleWidth
+
+
+paddleSpeed =
+    8
 
 
 
@@ -64,7 +80,7 @@ init : ( Model, Cmd Msg )
 init =
     ( { positionLeft = initialPosition
       , positionRight = initialPosition
-      , positionBall = ( gameWidth / 2, gameHeight / 2 )
+      , positionBall = initialBallPosition
       , directionBall = ( 1, 0 )
       , keysDown = Set.empty
       }
@@ -88,11 +104,8 @@ update msg model =
         ( pOne, pTwo ) =
             getPaddlePositions model
 
-        bd =
+        nextBallDirection =
             getBallDirection model
-
-        bp =
-            getBallPosition model.positionBall bd
     in
     case msg of
         KeyUp k ->
@@ -102,12 +115,26 @@ update msg model =
             ( { model | keysDown = Set.insert k model.keysDown }, Cmd.none )
 
         Render _ ->
-            ( { model | positionLeft = pOne, positionRight = pTwo, positionBall = bp, directionBall = bd }, Cmd.none )
+            case nextBallDirection of
+                Just direction ->
+                    ( { model
+                        | positionLeft = pOne
+                        , positionRight = pTwo
+                        , positionBall = getBallPosition model.positionBall direction
+                        , directionBall = direction
+                      }
+                    , Cmd.none
+                    )
 
-
-type Intersection
-    = Intersects Object
-    | None
+                Nothing ->
+                    ( { model
+                        | positionLeft = pOne
+                        , positionRight = pTwo
+                        , positionBall = initialBallPosition
+                        , directionBall = ( 1, 0 )
+                      }
+                    , Cmd.none
+                    )
 
 
 type Object
@@ -119,7 +146,7 @@ type Object
     | WallWest
 
 
-getIntersection : Model -> Intersection
+getIntersection : Model -> Maybe Object
 getIntersection model =
     let
         ( bx, by ) =
@@ -147,15 +174,10 @@ getIntersection model =
         intersection =
             intersectionChecks |> List.filter Tuple.first |> List.map Tuple.second
     in
-    case List.head intersection of
-        Just i ->
-            Intersects i
-
-        Nothing ->
-            None
+    List.head intersection
 
 
-getBallDirection : Model -> ( Float, Float )
+getBallDirection : Model -> Maybe ( Float, Float )
 getBallDirection model =
     let
         intersection =
@@ -178,38 +200,44 @@ getBallDirection model =
 
         relativeRight =
             ((y2 + paddleSpan) - by) / paddleSpan
+
+        xReflect relative =
+            cos (degrees (relative * ballReflectAngle))
+
+        yReflect relative =
+            sin (degrees (relative * ballReflectAngle))
     in
     case intersection of
-        Intersects WallNorth ->
-            ( dx, -dy )
+        Just WallNorth ->
+            Just ( dx, -dy )
 
-        Intersects WallSouth ->
-            ( dx, -dy )
+        Just WallSouth ->
+            Just ( dx, -dy )
 
-        Intersects WallEast ->
-            ( 0, 0 )
+        Just WallEast ->
+            Nothing
 
-        Intersects WallWest ->
-            ( 0, 0 )
+        Just WallWest ->
+            Nothing
 
-        Intersects PaddleLeft ->
-            ( cos (degrees (relativeLeft * 75)), negate (sin (degrees relativeLeft * 75)) )
+        Just PaddleLeft ->
+            Just ( xReflect relativeLeft, negate <| yReflect relativeLeft )
 
-        Intersects PaddleRight ->
-            ( negate (cos (degrees (relativeRight * 75))), negate (sin (degrees relativeRight * 75)) )
+        Just PaddleRight ->
+            Just ( negate <| xReflect relativeRight, negate <| yReflect relativeRight )
 
-        None ->
-            model.directionBall
+        Nothing ->
+            Just model.directionBall
 
 
 getBallPosition : ( Float, Float ) -> ( Float, Float ) -> ( Float, Float )
 getBallPosition ( px, py ) ( dx, dy ) =
     let
         nx =
-            min gameWidth (max 0 (px + 3 * dx))
+            min gameWidth (max 0 (px + ballSpeed * dx))
 
         ny =
-            min gameHeight (max 0 (py + 3 * dy))
+            min gameHeight (max 0 (py + ballSpeed * dy))
     in
     ( nx, ny )
 

@@ -5,8 +5,10 @@ import Browser.Events as Events
 import Html exposing (Html, div, h1, img, text)
 import Html.Attributes exposing (src)
 import Json.Decode as D
+import Set
 import Svg as S
 import Svg.Attributes as SA
+import Time
 
 
 
@@ -40,6 +42,7 @@ initialPosition =
 type alias Model =
     { positionOne : Int
     , positionTwo : Int
+    , keysDown : Set.Set String
     }
 
 
@@ -47,6 +50,7 @@ init : ( Model, Cmd Msg )
 init =
     ( { positionOne = initialPosition
       , positionTwo = initialPosition
+      , keysDown = Set.empty
       }
     , Cmd.none
     )
@@ -57,9 +61,9 @@ init =
 
 
 type Msg
-    = Left Player
-    | Right Player
-    | None
+    = KeyUp String
+    | KeyDown String
+    | Render Time.Posix
 
 
 type Player
@@ -69,37 +73,50 @@ type Player
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    let
+        ( pOne, pTwo ) =
+            getNewPositions model
+    in
     case msg of
-        Left One ->
-            ( { model
-                | positionOne = max 0 (model.positionOne - 10)
-              }
-            , Cmd.none
-            )
+        KeyUp k ->
+            ( { model | keysDown = Set.remove k model.keysDown }, Cmd.none )
 
-        Left Two ->
-            ( { model
-                | positionTwo = max 0 (model.positionTwo - 10)
-              }
-            , Cmd.none
-            )
+        KeyDown k ->
+            ( { model | keysDown = Set.insert k model.keysDown }, Cmd.none )
 
-        Right One ->
-            ( { model
-                | positionOne = min (gameWidth - paddleWidth) (model.positionOne + 10)
-              }
-            , Cmd.none
-            )
+        Render _ ->
+            ( { model | positionOne = pOne, positionTwo = pTwo }, Cmd.none )
 
-        Right Two ->
-            ( { model
-                | positionTwo = min (gameWidth - paddleWidth) (model.positionTwo + 10)
-              }
-            , Cmd.none
-            )
 
-        _ ->
-            ( model, Cmd.none )
+getNewPositions : Model -> ( Int, Int )
+getNewPositions model =
+    let
+        getDirection : String -> String -> Int
+        getDirection left right =
+            (if Set.member left model.keysDown then
+                -1
+
+             else
+                0
+            )
+                + (if Set.member right model.keysDown then
+                    1
+
+                   else
+                    0
+                  )
+
+        dOne =
+            10 * getDirection "ArrowLeft" "ArrowRight"
+
+        dTwo =
+            10 * getDirection "a" "d"
+
+        getPosition : Int -> Int -> Int
+        getPosition p d =
+            min (gameWidth - paddleWidth) (max 0 (p + d))
+    in
+    ( getPosition model.positionOne dOne, getPosition model.positionTwo dTwo )
 
 
 
@@ -108,31 +125,16 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Events.onKeyDown keyDecoder
+    Sub.batch
+        [ Events.onKeyDown (D.map KeyDown keyDecoder)
+        , Events.onKeyUp (D.map KeyUp keyDecoder)
+        , Events.onAnimationFrame Render
+        ]
 
 
-keyDecoder : D.Decoder Msg
+keyDecoder : D.Decoder String
 keyDecoder =
-    D.map toDirection (D.field "key" D.string)
-
-
-toDirection : String -> Msg
-toDirection s =
-    case s of
-        "ArrowLeft" ->
-            Left One
-
-        "ArrowRight" ->
-            Right One
-
-        "a" ->
-            Left Two
-
-        "d" ->
-            Right Two
-
-        _ ->
-            None
+    D.field "key" D.string
 
 
 

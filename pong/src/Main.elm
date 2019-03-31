@@ -73,6 +73,8 @@ type alias Model =
     , positionBall : ( Float, Float )
     , directionBall : ( Float, Float )
     , keysDown : Set String
+    , scoreLeft : Int
+    , scoreRight : Int
     }
 
 
@@ -83,6 +85,8 @@ init =
       , positionBall = initialBallPosition
       , directionBall = ( 1, 0 )
       , keysDown = Set.empty
+      , scoreLeft = 0
+      , scoreRight = 0
       }
     , Cmd.none
     )
@@ -145,10 +149,20 @@ updateState model =
     in
     case intersection of
         ReachLeft ->
-            ( { initial | directionBall = ( -1, 0 ) }, Cmd.none )
+            ( { initial
+                | directionBall = ( -1, 0 )
+                , scoreRight = model.scoreRight + 1
+              }
+            , Cmd.none
+            )
 
         ReachRight ->
-            ( { initial | directionBall = ( 1, 0 ) }, Cmd.none )
+            ( { initial
+                | directionBall = ( 1, 0 )
+                , scoreLeft = model.scoreLeft + 1
+              }
+            , Cmd.none
+            )
 
         Boundary ->
             ( { movedPaddles
@@ -283,10 +297,10 @@ getPaddlePositions model =
                   )
 
         dOne =
-            10 * getDirection "w" "s"
+            paddleSpeed * getDirection "w" "s"
 
         dTwo =
-            10 * getDirection "ArrowUp" "ArrowDown"
+            paddleSpeed * getDirection "ArrowUp" "ArrowDown"
 
         getPosition : Float -> Int -> Float
         getPosition p d =
@@ -356,6 +370,18 @@ view model =
                 , SA.r (String.fromInt ballRadius)
                 ]
                 []
+            , S.text_
+                [ SA.x (String.fromInt (gameWidth // 2 - 100))
+                , SA.y "100"
+                , SA.fontSize "50px"
+                ]
+                [ S.text (String.fromInt model.scoreLeft) ]
+            , S.text_
+                [ SA.x (String.fromInt (gameWidth // 2 + 100))
+                , SA.y "100"
+                , SA.fontSize "50px"
+                ]
+                [ S.text (String.fromInt model.scoreRight) ]
             ]
         ]
 

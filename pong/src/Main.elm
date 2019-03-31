@@ -29,17 +29,27 @@ paddleHeight =
     10
 
 
+initialPosition =
+    gameWidth // 2 - paddleWidth // 2
+
+
 
 ---- MODEL ----
 
 
 type alias Model =
-    { position : Int }
+    { positionOne : Int
+    , positionTwo : Int
+    }
 
 
 init : ( Model, Cmd Msg )
 init =
-    ( { position = 0 }, Cmd.none )
+    ( { positionOne = initialPosition
+      , positionTwo = initialPosition
+      }
+    , Cmd.none
+    )
 
 
 
@@ -47,23 +57,46 @@ init =
 
 
 type Msg
-    = Move Direction
-
-
-type Direction
-    = Left
-    | Right
+    = Left Player
+    | Right Player
     | None
+
+
+type Player
+    = One
+    | Two
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        Move Left ->
-            ( { model | position = max 0 (model.position - 10) }, Cmd.none )
+        Left One ->
+            ( { model
+                | positionOne = max 0 (model.positionOne - 10)
+              }
+            , Cmd.none
+            )
 
-        Move Right ->
-            ( { model | position = min (gameWidth - paddleWidth) (model.position + 10) }, Cmd.none )
+        Left Two ->
+            ( { model
+                | positionTwo = max 0 (model.positionTwo - 10)
+              }
+            , Cmd.none
+            )
+
+        Right One ->
+            ( { model
+                | positionOne = min (gameWidth - paddleWidth) (model.positionOne + 10)
+              }
+            , Cmd.none
+            )
+
+        Right Two ->
+            ( { model
+                | positionTwo = min (gameWidth - paddleWidth) (model.positionTwo + 10)
+              }
+            , Cmd.none
+            )
 
         _ ->
             ( model, Cmd.none )
@@ -75,22 +108,28 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Events.onKeyDown (D.map Move keyDecoder)
+    Events.onKeyDown keyDecoder
 
 
-keyDecoder : D.Decoder Direction
+keyDecoder : D.Decoder Msg
 keyDecoder =
     D.map toDirection (D.field "key" D.string)
 
 
-toDirection : String -> Direction
+toDirection : String -> Msg
 toDirection s =
     case s of
         "ArrowLeft" ->
-            Left
+            Left One
 
         "ArrowRight" ->
-            Right
+            Right One
+
+        "a" ->
+            Left Two
+
+        "d" ->
+            Right Two
 
         _ ->
             None
@@ -110,8 +149,15 @@ view model =
             , SA.viewBox ("0 0 " ++ String.fromInt gameWidth ++ " " ++ String.fromInt gameHeight)
             ]
             [ S.rect
-                [ SA.x (String.fromInt model.position)
+                [ SA.x (String.fromInt model.positionOne)
                 , SA.y (String.fromInt (gameHeight - 2 * paddleHeight))
+                , SA.width (String.fromInt paddleWidth)
+                , SA.height (String.fromInt paddleHeight)
+                ]
+                []
+            , S.rect
+                [ SA.x (String.fromInt model.positionTwo)
+                , SA.y (String.fromInt (2 * paddleHeight))
                 , SA.width (String.fromInt paddleWidth)
                 , SA.height (String.fromInt paddleHeight)
                 ]

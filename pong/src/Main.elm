@@ -2,10 +2,10 @@ module Main exposing (Model, Msg(..), init, main, update, view)
 
 import Browser
 import Browser.Events as Events
-import Html exposing (Html, div, h1, img, text)
+import Html exposing (Html, div, h1, text)
 import Html.Attributes exposing (src)
 import Json.Decode as D
-import Set
+import Set exposing (Set)
 import Svg as S
 import Svg.Attributes as SA
 import Time
@@ -24,11 +24,11 @@ gameHeight =
 
 
 paddleWidth =
-    100
+    10
 
 
 paddleHeight =
-    10
+    100
 
 
 initialPosition =
@@ -42,7 +42,7 @@ initialPosition =
 type alias Model =
     { positionOne : Int
     , positionTwo : Int
-    , keysDown : Set.Set String
+    , keysDown : Set String
     }
 
 
@@ -66,11 +66,6 @@ type Msg
     | Render Time.Posix
 
 
-type Player
-    = One
-    | Two
-
-
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
@@ -92,14 +87,14 @@ getNewPositions : Model -> ( Int, Int )
 getNewPositions model =
     let
         getDirection : String -> String -> Int
-        getDirection left right =
-            (if Set.member left model.keysDown then
+        getDirection up down =
+            (if Set.member up model.keysDown then
                 -1
 
              else
                 0
             )
-                + (if Set.member right model.keysDown then
+                + (if Set.member down model.keysDown then
                     1
 
                    else
@@ -107,14 +102,14 @@ getNewPositions model =
                   )
 
         dOne =
-            10 * getDirection "ArrowLeft" "ArrowRight"
+            10 * getDirection "w" "s"
 
         dTwo =
-            10 * getDirection "a" "d"
+            10 * getDirection "ArrowUp" "ArrowDown"
 
         getPosition : Int -> Int -> Int
         getPosition p d =
-            min (gameWidth - paddleWidth) (max 0 (p + d))
+            min (gameHeight - paddleHeight) (max 0 (p + d))
     in
     ( getPosition model.positionOne dOne, getPosition model.positionTwo dTwo )
 
@@ -151,17 +146,23 @@ view model =
             , SA.viewBox ("0 0 " ++ String.fromInt gameWidth ++ " " ++ String.fromInt gameHeight)
             ]
             [ S.rect
-                [ SA.x (String.fromInt model.positionOne)
-                , SA.y (String.fromInt (gameHeight - 2 * paddleHeight))
+                [ SA.x (String.fromInt (2 * paddleWidth))
+                , SA.y (String.fromInt model.positionOne)
                 , SA.width (String.fromInt paddleWidth)
                 , SA.height (String.fromInt paddleHeight)
                 ]
                 []
             , S.rect
-                [ SA.x (String.fromInt model.positionTwo)
-                , SA.y (String.fromInt (2 * paddleHeight))
+                [ SA.x (String.fromInt (gameWidth - 2 * paddleWidth))
+                , SA.y (String.fromInt model.positionTwo)
                 , SA.width (String.fromInt paddleWidth)
                 , SA.height (String.fromInt paddleHeight)
+                ]
+                []
+            , S.circle
+                [ SA.cx (String.fromInt (gameWidth // 2))
+                , SA.cy (String.fromInt (gameHeight // 2))
+                , SA.r "5"
                 ]
                 []
             ]

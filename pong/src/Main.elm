@@ -95,7 +95,7 @@ init =
 type Msg
     = KeyUp String
     | KeyDown String
-    | Render Time.Posix
+    | UpdateState Time.Posix
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -103,9 +103,6 @@ update msg model =
     let
         ( pOne, pTwo ) =
             getPaddlePositions model
-
-        nextBallDirection =
-            getBallDirection model
     in
     case msg of
         KeyUp k ->
@@ -114,39 +111,77 @@ update msg model =
         KeyDown k ->
             ( { model | keysDown = Set.insert k model.keysDown }, Cmd.none )
 
-        Render _ ->
-            case nextBallDirection of
-                Just direction ->
-                    ( { model
-                        | positionLeft = pOne
-                        , positionRight = pTwo
-                        , positionBall = getBallPosition model.positionBall direction
-                        , directionBall = direction
-                      }
-                    , Cmd.none
-                    )
-
-                Nothing ->
-                    ( { model
-                        | positionLeft = pOne
-                        , positionRight = pTwo
-                        , positionBall = initialBallPosition
-                        , directionBall = ( 1, 0 )
-                      }
-                    , Cmd.none
-                    )
+        UpdateState _ ->
+            updateState model
 
 
-type Object
-    = PaddleLeft
-    | PaddleRight
-    | WallNorth
-    | WallEast
-    | WallSouth
-    | WallWest
+updateState : Model -> ( Model, Cmd Msg )
+updateState model =
+    let
+        pb =
+            model.positionBall
+
+        (( dx, dy ) as db) =
+            model.directionBall
+
+        ( pLeft, pRight ) =
+            getPaddlePositions model
+
+        initial =
+            { model
+                | positionLeft = initialPosition
+                , positionRight = initialPosition
+                , positionBall = initialBallPosition
+            }
+
+        movedPaddles =
+            { model | positionLeft = pLeft, positionRight = pRight }
+
+        intersection =
+            getIntersection model
+
+        rd =
+            getReflection model intersection
+    in
+    case intersection of
+        ReachLeft ->
+            ( { initial | directionBall = ( -1, 0 ) }, Cmd.none )
+
+        ReachRight ->
+            ( { initial | directionBall = ( 1, 0 ) }, Cmd.none )
+
+        Boundary ->
+            ( { movedPaddles
+                | positionBall = getBallPosition pb ( dx, -dy )
+                , directionBall = ( dx, -dy )
+              }
+            , Cmd.none
+            )
+
+        None ->
+            ( { movedPaddles | positionBall = getBallPosition pb db }
+            , Cmd.none
+            )
+
+        _ ->
+            ( { movedPaddles
+                | positionBall = getBallPosition pb rd
+                , directionBall = rd
+              }
+            , Cmd.none
+            )
 
 
-getIntersection : Model -> Maybe Object
+type IntersectionResult
+    = Boundary
+    | PongLeft
+    | PongRight
+    | ReachLeft
+    | ReachRight
+    | None
+
+
+getIntersection : Model -> IntersectionResult
 getIntersection model =
     let
         ( bx, by ) =
@@ -163,29 +198,28 @@ getIntersection model =
             not (x > bx + r || x + pw < bx - r || y > by + r || y + ph < by - r)
 
         intersectionChecks =
-            [ ( intersectsBall ( paddleLeft, model.positionLeft ), PaddleLeft )
-            , ( intersectsBall ( paddleRight, model.positionRight ), PaddleRight )
-            , ( by - r <= 0, WallNorth )
-            , ( by + r >= gameHeight, WallSouth )
-            , ( bx - r <= 0, WallWest )
-            , ( bx + r >= gameWidth, WallEast )
+            [ ( intersectsBall ( paddleLeft, model.positionLeft ), PongLeft )
+            , ( intersectsBall ( paddleRight, model.positionRight ), PongRight )
+            , ( by - r <= 0, Boundary )
+            , ( by + r >= gameHeight, Boundary )
+            , ( bx - r <= 0, ReachLeft )
+            , ( bx + r >= gameWidth, ReachRight )
             ]
 
         intersection =
             intersectionChecks |> List.filter Tuple.first |> List.map Tuple.second
     in
-    List.head intersection
+    case List.head intersection of
+        Just result ->
+            result
+
+        Nothing ->
+            None
 
 
-getBallDirection : Model -> Maybe ( Float, Float )
-getBallDirection model =
+getReflection : Model -> IntersectionResult -> ( Float, Float )
+getReflection model intersection =
     let
-        intersection =
-            getIntersection model
-
-        ( dx, dy ) =
-            model.directionBall
-
         ( _, by ) =
             model.positionBall
 
@@ -208,26 +242,14 @@ getBallDirection model =
             sin (degrees (relative * ballReflectAngle))
     in
     case intersection of
-        Just WallNorth ->
-            Just ( dx, -dy )
+        PongLeft ->
+            ( xReflect relativeLeft, negate <| yReflect relativeLeft )
 
-        Just WallSouth ->
-            Just ( dx, -dy )
+        PongRight ->
+            ( negate <| xReflect relativeRight, negate <| yReflect relativeRight )
 
-        Just WallEast ->
-            Nothing
-
-        Just WallWest ->
-            Nothing
-
-        Just PaddleLeft ->
-            Just ( xReflect relativeLeft, negate <| yReflect relativeLeft )
-
-        Just PaddleRight ->
-            Just ( negate <| xReflect relativeRight, negate <| yReflect relativeRight )
-
-        Nothing ->
-            Just model.directionBall
+        _ ->
+            model.directionBall
 
 
 getBallPosition : ( Float, Float ) -> ( Float, Float ) -> ( Float, Float )
@@ -282,7 +304,7 @@ subscriptions model =
     Sub.batch
         [ Events.onKeyDown (D.map KeyDown keyDecoder)
         , Events.onKeyUp (D.map KeyUp keyDecoder)
-        , Events.onAnimationFrame Render
+        , Events.onAnimationFrame UpdateState
         ]
 
 

@@ -119,6 +119,15 @@ update msg model =
             updateState model
 
 
+{-| Updates the state of the game in accordance with browser frame renderings.
+First checks if the ball has any intersections, changing the direction accordingly.
+Afterwards, the ball is moved in accordance to its new direction and the paddles are
+moved in accordance to the keys being pressed at the time of the frame render.
+
+If the ball hit one of the 'goals', then the positions of all objects must also
+be reset, and the scores adjusted.
+
+-}
 updateState : Model -> ( Model, Cmd Msg )
 updateState model =
     let
@@ -186,6 +195,8 @@ updateState model =
             )
 
 
+{-| Represents the types of intersections which could occur.
+-}
 type IntersectionResult
     = Boundary
     | PongLeft
@@ -195,6 +206,9 @@ type IntersectionResult
     | None
 
 
+{-| Checks if the ball is intersecting either the paddles or the game boundaries,
+returning a suitable `IntersectionResult`.
+-}
 getIntersection : Model -> IntersectionResult
 getIntersection model =
     let
@@ -231,6 +245,8 @@ getIntersection model =
             None
 
 
+{-| Calculates the new direction of the ball in the case of a 'pong' by a paddle.
+-}
 getReflection : Model -> IntersectionResult -> ( Float, Float )
 getReflection model intersection =
     let
@@ -266,6 +282,9 @@ getReflection model intersection =
             model.directionBall
 
 
+{-| Calculates the new position of the ball based on the old position
+and the current direction.
+-}
 getBallPosition : ( Float, Float ) -> ( Float, Float ) -> ( Float, Float )
 getBallPosition ( px, py ) ( dx, dy ) =
     let
@@ -278,6 +297,9 @@ getBallPosition ( px, py ) ( dx, dy ) =
     ( nx, ny )
 
 
+{-| Calculates the new positions of the paddles based on the keys current
+being pressed
+-}
 getPaddlePositions : Model -> ( Float, Float )
 getPaddlePositions model =
     let
@@ -313,6 +335,8 @@ getPaddlePositions model =
 --- SUBSCRIPTIONS ---
 
 
+{-| Tracks the keys being pressed and the browser rendering frames.
+-}
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch

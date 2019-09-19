@@ -2,13 +2,14 @@
 
 Game of Pong made to test my understanding of the Elm architecture, as well as a refresher on web development and functional programming.
 
+Deployed on [Netlify](pong.cheukwing.dev).
+
 ## Running
 
 This project was made using `create-elm-app`, and so can be simply run locally via:
 ```
   elm-app start 
 ```
-I am not planning on deploying this.
 
 ## Debrief
 

@@ -2,7 +2,7 @@
 
 Game of Pong made to test my understanding of the Elm architecture, as well as a refresher on web development and functional programming.
 
-Deployed on [Netlify](pong.cheukwing.dev).
+Deployed on [Netlify](https://pong.cheukwing.dev/).
 
 ## Running
 

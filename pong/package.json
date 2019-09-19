@@ -1,0 +1,10 @@
+{
+  "name": "elm-pong",
+  "version": "1.0.0",
+  "devDependencies": {
+    "create-elm-app": "^3.2.1"
+  },
+  "scripts": {
+    "build": "elm-app build"
+  }
+}
